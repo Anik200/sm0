@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mini Firebase App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="auth-container">
+    <h2>Sign Up / Log In</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button id="signup-btn">Sign Up</button>
+    <button id="login-btn">Log In</button>
+    <p id="auth-msg"></p>
+  </div>
+
+  <div id="app-container" class="hidden">
+    <button id="logout-btn">Log Out</button>
+    <h2>Post Content</h2>
+    <textarea id="text-post" placeholder="Write something..."></textarea>
+    <button id="post-text-btn">Post Text</button>
+    <br><br>
+    <input type="file" id="file-input">
+    <button id="post-image-btn">Upload Image</button>
+
+    <h3>Posts</h3>
+    <div id="posts"></div>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-storage.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
