@@ -8,6 +8,7 @@
 <body>
   <div id="auth-container">
     <h2>Sign Up / Log In</h2>
+    <input type="text" id="username" placeholder="Username (for sign up)" />
     <input type="email" id="email" placeholder="Email" />
     <input type="password" id="password" placeholder="Password" />
     <button id="signup-btn">Sign Up</button>
@@ -28,7 +29,7 @@
     <div id="posts"></div>
   </div>
 
-  <!-- Firebase Modules and App Logic -->
+  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
     import {
@@ -37,38 +38,29 @@
       signOut
     } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
     import {
-      getFirestore, collection, addDoc,
-      serverTimestamp, query, orderBy, onSnapshot
+      getFirestore, doc, setDoc, getDoc,
+      collection, addDoc, serverTimestamp,
+      query, orderBy, onSnapshot
     } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
     import {
       getStorage, ref, uploadBytes, getDownloadURL
     } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-storage.js";
 
-    // 🔧 REPLACE WITH YOUR CONFIG
-   const firebaseConfig = {
-
-  apiKey: "AIzaSyD8tySA3GMaT4GmxV__nVP08tvvzsuwq8Q",
-
-  authDomain: "anik200.firebaseapp.com",
-
-  projectId: "anik200",
-
-  storageBucket: "anik200.firebasestorage.app",
-
-  messagingSenderId: "344373537544",
-
-  appId: "1:344373537544:web:9922babec146c310ab1abd",
-
-  measurementId: "G-8Y2HZQZ3WS"
-
-};
-
+    // 🔧 Replace with your Firebase project config
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      appId: "YOUR_APP_ID"
+    };
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
     const storage = getStorage(app);
 
+    const usernameInput = document.getElementById('username');
     const emailInput = document.getElementById('email');
     const passInput = document.getElementById('password');
     const signupBtn = document.getElementById('signup-btn');
@@ -84,34 +76,49 @@
     const postImageBtn = document.getElementById('post-image-btn');
     const postsEl = document.getElementById('posts');
 
-    signupBtn.onclick = () => {
-      const email = emailInput.value;
-      const pass = passInput.value;
-      createUserWithEmailAndPassword(auth, email, pass)
-        .then(() => authMsg.innerText = "Signed up successfully!")
-        .catch(err => authMsg.innerText = err.message);
+    let unsubscribePosts = null;
+
+    signupBtn.onclick = async () => {
+      const email = emailInput.value.trim();
+      const pass = passInput.value.trim();
+      const username = usernameInput.value.trim();
+      if (!username) return authMsg.innerText = "Please enter a username.";
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        await setDoc(doc(db, "users", cred.user.uid), {
+          username,
+          email
+        });
+        authMsg.innerText = "Signed up successfully!";
+      } catch (err) {
+        authMsg.innerText = err.message;
+      }
     };
 
     loginBtn.onclick = () => {
-      const email = emailInput.value;
-      const pass = passInput.value;
+      const email = emailInput.value.trim();
+      const pass = passInput.value.trim();
       signInWithEmailAndPassword(auth, email, pass)
         .then(() => authMsg.innerText = "Logged in!")
         .catch(err => authMsg.innerText = err.message);
     };
 
-    logoutBtn.onclick = () => signOut(auth);
+    logoutBtn.onclick = () => {
+      if (unsubscribePosts) unsubscribePosts();
+      signOut(auth);
+    };
 
     onAuthStateChanged(auth, user => {
       if (user) {
         authContainer.classList.add('hidden');
         appContainer.classList.remove('hidden');
+        loadPosts();
       } else {
         authContainer.classList.remove('hidden');
         appContainer.classList.add('hidden');
+        postsEl.innerHTML = '';
+        if (unsubscribePosts) unsubscribePosts();
       }
-
-      loadPosts(); // ✅ Always try loading posts
     });
 
     postTextBtn.onclick = async () => {
@@ -119,12 +126,17 @@
       if (!user) return;
       const text = textPost.value.trim();
       if (!text) return;
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const username = userDoc.exists() ? userDoc.data().username : "Anonymous";
+
       await addDoc(collection(db, "posts"), {
         uid: user.uid,
-        userEmail: user.email,
+        username,
         text,
         timestamp: serverTimestamp()
       });
+
       textPost.value = '';
     };
 
@@ -133,43 +145,46 @@
       if (!user) return;
       const file = fileInput.files[0];
       if (!file) return;
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const username = userDoc.exists() ? userDoc.data().username : "Anonymous";
+
       const path = `images/${user.uid}/${Date.now()}-${file.name}`;
       const storageRef = ref(storage, path);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
+
       await addDoc(collection(db, "posts"), {
         uid: user.uid,
-        userEmail: user.email,
+        username,
         image: url,
         timestamp: serverTimestamp()
       });
+
       fileInput.value = '';
     };
 
     function loadPosts() {
       const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
-      onSnapshot(q, snapshot => {
+      unsubscribePosts = onSnapshot(q, snapshot => {
         postsEl.innerHTML = '';
         snapshot.forEach(doc => {
           const data = doc.data();
           const div = document.createElement('div');
           div.classList.add('post');
 
-          // Show who posted
-          if (data.userEmail) {
+          if (data.username) {
             const userEl = document.createElement('small');
-            userEl.textContent = `Posted by: ${data.userEmail}`;
+            userEl.textContent = `Posted by: ${data.username}`;
             div.appendChild(userEl);
           }
 
-          // Show text
           if (data.text) {
             const p = document.createElement('p');
             p.textContent = data.text;
             div.appendChild(p);
           }
 
-          // Show image
           if (data.image) {
             const img = document.createElement('img');
             img.src = data.image;
