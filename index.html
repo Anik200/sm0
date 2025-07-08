@@ -29,7 +29,7 @@
     <div id="posts"></div>
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK + App Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
     import {
@@ -183,18 +183,30 @@
           const div = document.createElement('div');
           div.classList.add('post');
 
+          // Username
           if (data.username) {
             const userEl = document.createElement('small');
             userEl.textContent = `Posted by: ${data.username}`;
             div.appendChild(userEl);
           }
 
+          // Timestamp
+          if (data.timestamp) {
+            const dateEl = document.createElement('small');
+            const date = data.timestamp.toDate();
+            dateEl.textContent = ` • ${date.toLocaleString()}`;
+            dateEl.style.marginLeft = '10px';
+            div.appendChild(dateEl);
+          }
+
+          // Text
           if (data.text) {
             const p = document.createElement('p');
             p.textContent = data.text;
             div.appendChild(p);
           }
 
+          // Image
           if (data.image) {
             const img = document.createElement('img');
             img.src = data.image;
